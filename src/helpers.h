@@ -24,6 +24,13 @@ string hasData(string s) {
   return "";
 }
 
+// Transition function for finite state machine determines lowest cost behvior
+// Returns the lowest cost state (string)
+// string transition_function(
+
+
+
+
 //
 // Helper functions related to waypoints and converting from XY to Frenet
 //   or vice versa
