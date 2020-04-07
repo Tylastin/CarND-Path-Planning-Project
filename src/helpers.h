@@ -9,6 +9,8 @@
 using std::string;
 using std::vector;
 
+double distance(double x1, double y1, double x2, double y2);
+
 // Checks if the SocketIO event has JSON data.
 // If there is data the JSON object in string format will be returned,
 //   else the empty string "" will be returned.
@@ -24,11 +26,148 @@ string hasData(string s) {
   return "";
 }
 
-// Transition function for finite state machine determines lowest cost behvior
-// Returns the lowest cost state (string)
-// string transition_function(
+// Cost functions 
+
+double collision_cost_function(vector<vector<double>> sensor_fusion, double car_s, double car_d, string current_state, int lane, int previous_path_size) { 
+  //Penalizes behavior that would result in collision
+
+  double lane_width = 4.0; // 
+  double cost;
+  for (int i = 0; i < sensor_fusion.size(); i++) {
+    // check if there's a car in the current lane        
+    float d = sensor_fusion[i][6];
+    if (d < (lane_width/2 + lane_width*lane+ lane_width/2) && d > ( lane_width/2 + lane_width*lane-lane_width/2)) {
+
+      double vx = sensor_fusion[i][3];
+      double vy = sensor_fusion[i][4];
+      double check_speed = distance(0,0,vx,vy) ;
+      double check_s = sensor_fusion[i][5] ;
+
+      check_s += ((double)previous_path_size*0.02*check_speed); // Project s value forward  
+      // if gap isn't big enough to ensure safety add huge penalty
+      if((fabs(check_s-car_s) < 30)) {
+        cost = 1;
+      }    
+      else {
+      cost = 0;
+      }
+    }
+  }
+  return cost; 
+}
+
+double speed_cost_function(vector<vector<double>> sensor_fusion, double car_s, double car_d, string current_state, int lane, int previous_path_size){ 
+  //Penalizes inefficient behavior 
+  double target_speed = 49.5; // mph just under speed limit
+  double lane_width = 4.0; // 
+  double cost = 0;
+  for (int i = 0; i < sensor_fusion.size(); i++) {          
+    // check if there's a car in the current lane       
+    float d = sensor_fusion[i][6];
+    
+    if (d < (lane_width/2 + lane_width*lane+ lane_width/2) && d > ( lane_width/2 + lane_width*lane-lane_width/2)) {
+      double vx = sensor_fusion[i][3];
+      double vy = sensor_fusion[i][4];
+      double check_speed = distance(0,0,vx,vy) ;
+      double check_s = sensor_fusion[i][5] ;
+
+      check_s += ((double)previous_path_size*0.02*check_speed); // Project s value forward
+      // check if that car is in front and within buffer zone of 40 meters in front and 5m behind
+      // add cost depending on how much slower than the desired speed the car is going 
+      if((check_s > car_s-5) && ((check_s-car_s)<40)) { 
+        
+        double check_cost = (target_speed - check_speed)/target_speed;
+        if (check_cost > cost) {
+          cost = check_cost; 
+        }
+      }              
+
+    }
+  }
+  return cost;
+} 
 
 
+// Transition function for the finite state machine. 
+// Determines lowest cost behavior and returns lowest cost state (string)
+string transition_function(vector<vector<double>> sensor_fusion, double car_s, double car_d, string current_state, int lane, int previous_path_size) {
+  string next_state;
+  double current_lane_collision_cost = collision_cost_function(sensor_fusion, car_s, car_d, current_state, lane, previous_path_size);
+  double current_lane_speed_cost = speed_cost_function(sensor_fusion, car_s, car_d, current_state, lane, previous_path_size); 
+  // weighted sum of cost functions
+  double current_lane_total_cost = 10*current_lane_collision_cost + current_lane_speed_cost;
+  vector<int> lanes = {0,1,2};
+  int potential_lane; 
+  double potential_lane_speed_cost;
+  double potential_lane_collision_cost;
+  double potential_lane_total_cost;
+  int optimal_lane = lane; 
+  // Compares the cost of the current lane to the cost of the adjacent lanes
+  for (int i = 0; i < lanes.size(); i++) { 
+    if ( abs(lanes[i]-lane)== 1){  //checks if lane is adjacent to current lane
+      
+      potential_lane = lanes[i];
+      potential_lane_speed_cost = speed_cost_function(sensor_fusion, car_s, car_d, current_state, potential_lane, previous_path_size); 
+      potential_lane_collision_cost = collision_cost_function(sensor_fusion, car_s, car_d, current_state, potential_lane, previous_path_size);
+        potential_lane_total_cost = 10*potential_lane_collision_cost + potential_lane_speed_cost; 
+
+      // switches lanes if the cos would be reduced by at least 0.05
+      if (potential_lane_total_cost + 0.05 < current_lane_total_cost) { 
+        optimal_lane = potential_lane;
+      } 
+    } 
+  } 
+  int lane_diff= optimal_lane - lane;
+  
+  //checks current fsm state and transitions accordingly;
+  if (current_state == "Ready") {
+    next_state = "Lane Keep";
+  }
+  else if (current_state == "Lane Keep") {
+    if (lane_diff> 0) {
+      next_state = "Prepare Turn Right";
+      
+    } 
+    else if (lane_diff <0) { 
+      next_state = "Prepare Turn Left";
+    } 
+    else {
+      next_state = "Lane Keep";
+    }
+    
+  } 
+  else if (current_state == "Prepare Turn Left") {
+    // continue preparing until a gap opens on the left. once a gap opens turn left
+    
+    if (optimal_lane == lane-1) {
+      next_state = "Turn Left";
+    } 
+    else { 
+      next_state = "Prepare Turn Left";
+    } 
+  } 
+  
+  else if (current_state == "Prepare Turn Right") {
+    // continue preparing until a gap opens. once a gap opens turn right
+    if (optimal_lane == lane+1) {
+      next_state = "Turn Right";
+    } 
+    else { 
+      next_state = "Prepare Turn Right";
+    } 
+  } 
+  else if (current_state == "Turn Left") {
+    next_state = "Lane Keep";
+  } 
+  else if (current_state == "Turn Right") {
+    next_state = "Lane Keep"; 
+  } 
+  else { 
+    // invalid state
+    std::cout << "invalid state";
+  } 
+  return next_state;
+}
 
 
 //
