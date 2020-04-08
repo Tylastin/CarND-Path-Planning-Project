@@ -12,7 +12,9 @@ The finite state machine used for this program has 5 states:
 * Turn Left
 
 The model in Figure 1 shows the possible transitions between the states. 
+
 ![alt text](/images/finite_state_machine.png "Finite State Machine")
+
 Figure 1: Finite State Machine 
 
 ### Spline Trajectory Generator 
