@@ -117,7 +117,7 @@ int main() {
           }
                
           // Get new finite state machine state
-          current_state = transition_function(sensor_fusion, car_s, car_d, current_state, lane, previous_path_size);
+          current_state = transition_function(sensor_fusion, car_s, car_d, current_state, lane, previous_path_size, car_speed);
            
           // Behavior is determined by the finite state machine state
           if (current_state == "Lane Keep") {
@@ -149,15 +149,15 @@ int main() {
               double check_s = sensor_fusion[i][5] ;
               check_s += ((double)previous_path_size*0.02*check_speed); // Project s value forward
               
-              // check if that car is in front and within buffer zone of 40 meters
-              if((check_s > car_s) && ((check_s-car_s)<40)) {    
+              // check if that car is in front and within buffer zone of 30 meters
+              if((check_s > car_s) && ((check_s-car_s)<30)) {    
                 // Drop target speed to match the speed of the car
                 target_speed = check_speed;
               }                
             }
           }
           // Adjust velocity based on the difference between current velocity and target velocity
-          const double velocity_change =0.4; //m/s how much the velocity can increase or decrease in 0.02 seconds
+          const double velocity_change =0.3; //m/s how much the velocity can increase or decrease in 0.02 seconds
        
           if(ref_velocity < target_speed){
             ref_velocity += velocity_change; 
@@ -165,7 +165,6 @@ int main() {
           else if(ref_velocity > target_speed){       
             ref_velocity -=velocity_change;
           }
-          
           
           /**
            *  Generate drivable trajectories using splines
@@ -232,9 +231,8 @@ int main() {
           double target_dist = distance(0,0, target_x, target_y);
           
           double x_add_on = 0;
-          
-          
-          // fill up the rest the trajecotry with spline points
+              
+          // fill up the rest the trajectory with spline points
           for (int i =0; i < 50- previous_path_size; i++) { 
             
             double N = target_dist/(0.02*ref_velocity/2.24);
