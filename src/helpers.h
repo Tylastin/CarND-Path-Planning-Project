@@ -34,7 +34,7 @@ double collision_cost_function(vector<vector<double>> sensor_fusion, double car_
   double lane_width = 4.0; // 
   double cost;
   for (int i = 0; i < sensor_fusion.size(); i++) {
-    // check if there's a car in the current lane        
+    // check if there's a car in lane being evaluated      
     float d = sensor_fusion[i][6];
     if (d < (lane_width/2 + lane_width*lane+ lane_width/2) && d > ( lane_width/2 + lane_width*lane-lane_width/2)) {
 
@@ -62,9 +62,8 @@ double speed_cost_function(vector<vector<double>> sensor_fusion, double car_s, d
   double lane_width = 4.0; // 
   double cost = 0;
   for (int i = 0; i < sensor_fusion.size(); i++) {          
-    // check if there's a car in the current lane       
-    float d = sensor_fusion[i][6];
-    
+    // check if there's a car in the lane being evaluated      
+    float d = sensor_fusion[i][6];    
     if (d < (lane_width/2 + lane_width*lane+ lane_width/2) && d > ( lane_width/2 + lane_width*lane-lane_width/2)) {
       double vx = sensor_fusion[i][3];
       double vy = sensor_fusion[i][4];
@@ -72,10 +71,9 @@ double speed_cost_function(vector<vector<double>> sensor_fusion, double car_s, d
       double check_s = sensor_fusion[i][5] ;
 
       check_s += ((double)previous_path_size*0.02*check_speed); // Project s value forward
-      // check if that car is in front and within buffer zone of 40 meters in front and 5m behind
-      // add cost depending on how much slower than the desired speed the car is going 
+      // check if that car within buffer zone of 40 meters in front and 5m behind
+      // add cost depending on how much slower than the target speed the car is going 
       if((check_s > car_s-5) && ((check_s-car_s)<40)) { 
-        
         double check_cost = (target_speed - check_speed)/target_speed;
         if (check_cost > cost) {
           cost = check_cost; 
@@ -105,13 +103,12 @@ string transition_function(vector<vector<double>> sensor_fusion, double car_s, d
   // Compares the cost of the current lane to the cost of the adjacent lanes
   for (int i = 0; i < lanes.size(); i++) { 
     if ( abs(lanes[i]-lane)== 1){  //checks if lane is adjacent to current lane
-      
       potential_lane = lanes[i];
       potential_lane_speed_cost = speed_cost_function(sensor_fusion, car_s, car_d, current_state, potential_lane, previous_path_size); 
       potential_lane_collision_cost = collision_cost_function(sensor_fusion, car_s, car_d, current_state, potential_lane, previous_path_size);
         potential_lane_total_cost = 10*potential_lane_collision_cost + potential_lane_speed_cost; 
 
-      // switches lanes if the cos would be reduced by at least 0.05
+      // switches lanes if the cost would be reduced by at least 0.05
       if (potential_lane_total_cost + 0.05 < current_lane_total_cost) { 
         optimal_lane = potential_lane;
       } 
@@ -119,7 +116,7 @@ string transition_function(vector<vector<double>> sensor_fusion, double car_s, d
   } 
   int lane_diff= optimal_lane - lane;
   
-  //checks current fsm state and transitions accordingly;
+  //checks current fsm state and optimal lane and transitions accordingly;
   if (current_state == "Ready") {
     next_state = "Lane Keep";
   }
@@ -137,8 +134,6 @@ string transition_function(vector<vector<double>> sensor_fusion, double car_s, d
     
   } 
   else if (current_state == "Prepare Turn Left") {
-    // continue preparing until a gap opens on the left. once a gap opens turn left
-    
     if (optimal_lane == lane-1) {
       next_state = "Turn Left";
     } 
@@ -146,9 +141,7 @@ string transition_function(vector<vector<double>> sensor_fusion, double car_s, d
       next_state = "Prepare Turn Left";
     } 
   } 
-  
   else if (current_state == "Prepare Turn Right") {
-    // continue preparing until a gap opens. once a gap opens turn right
     if (optimal_lane == lane+1) {
       next_state = "Turn Right";
     } 
@@ -168,7 +161,6 @@ string transition_function(vector<vector<double>> sensor_fusion, double car_s, d
   } 
   return next_state;
 }
-
 
 //
 // Helper functions related to waypoints and converting from XY to Frenet
