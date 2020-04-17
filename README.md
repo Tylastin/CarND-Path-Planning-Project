@@ -1,7 +1,7 @@
 # CarND-Path-Planning-Project
 This is a C++ based path planner for highway driving. The behavior planner is implemented using a finite state machines and weighted cost functions for feasability, safety, and efficiency. The trajectory generator is implemented using cubic splines to generate a set of points for the controller to follow. This README provides a general overview. A more detailed writeup of the solution can be found [here](./PathGenerationModel.md). A demo of the path planner driving a car in the simulator can be found [here](./highway_driving_demo.mov).
 
-[Highway Driving Image](./highway_driving_image.png)
+![alt text](./highway_driving_image.png "Highway Driving Image")
    
 ### Goals
 The goal of this project is to safely navigate around a virtual highway with other traffic that is driving +-10 MPH of the 50 MPH speed limit. This should be accomplished using the car's localization data, sensor fusion data, and a sparse map list of waypoints around the highway. The car should go as close as possible to the 50 MPH speed limit, which means passing slower traffic when possible, note that other cars will try to change lanes too. The car should avoid hitting other cars at all cost as well as driving inside of the marked road lanes at all times, unless going from one lane to another. The car should be able to make one complete loop around the 6946m highway. Since the car is trying to go 50 MPH, it should take a little over 5 minutes to complete 1 loop. Also the car should not experience total acceleration over 10 m/s^2 and jerk that is greater than 10 m/s^3.
