@@ -8,6 +8,8 @@
 #include "helpers.h"
 #include "json.hpp"
 #include "spline.h"
+#include "fsm.h"
+
 // for convenience
 using nlohmann::json;
 using std::string;
@@ -56,11 +58,11 @@ int main() {
   
   int lane = 1; // start in lane 1 (middle lane)
   
-  //Start the finite state machine in the ready state
-  string current_state = "Ready";
+  // Initialize the state machine in the ready state  
+  fsm finite_state_machine;
   
   h.onMessage([&map_waypoints_x,&map_waypoints_y,&map_waypoints_s,
-               &map_waypoints_dx,&map_waypoints_dy, &ref_velocity, &lane, &current_state]
+               &map_waypoints_dx,&map_waypoints_dy, &ref_velocity, &lane, &finite_state_machine]
               (uWS::WebSocket<uWS::SERVER> ws, char *data, size_t length,
                uWS::OpCode opCode) {
     // "42" at the start of the message means there's a websocket message event.
@@ -116,24 +118,24 @@ int main() {
             car_s = end_path_s;         
           }
                
-          // Get new finite state machine state
-          current_state = transition_function(sensor_fusion, car_s, car_d, current_state, lane, previous_path_size, car_speed);
-           
+          // Get finite state machine state after transition
+          string state = finite_state_machine.transition(sensor_fusion, car_s, car_d, lane, previous_path_size, car_speed);
+          
           // Behavior is determined by the finite state machine state
-          if (current_state == "Lane Keep") {
+          if (state == "Lane Keep") {
             relevant_lane = lane;
           }   
-          else if (current_state == "Prepare Turn Right" ) {       
-            relevant_lane = lane+1;
+          else if (state == "Prepare Turn Right" ) {       
+            relevant_lane = lane + 1;
           } 
-          else if (current_state == "Prepare Turn Left" ) {        
-            relevant_lane = lane-1;
+          else if (state == "Prepare Turn Left" ) {        
+            relevant_lane = lane - 1;
           } 
-          else if (current_state == "Turn Right" ) {
+          else if (state == "Turn Right" ) {
             lane = lane+ 1;
             relevant_lane = lane;
           } 
-          else if (current_state == "Turn Left" ) { 
+          else if (state == "Turn Left" ) { 
             lane = lane - 1;
             relevant_lane = lane;  
           } 
@@ -147,23 +149,23 @@ int main() {
               double vy = sensor_fusion[i][4];
               double check_speed = distance(0,0,vx,vy) ;
               double check_s = sensor_fusion[i][5] ;
-              check_s += ((double)previous_path_size*0.02*check_speed); // Project s value forward
+              check_s += ((double)previous_path_size * 0.02 * check_speed); // Project s value forward
               
               // check if that car is in front and within buffer zone of 30 meters
-              if((check_s > car_s) && ((check_s-car_s)<30)) {    
+              if((check_s > car_s) && ((check_s - car_s) < 30)) {    
                 // Drop target speed to match the speed of the car
                 target_speed = check_speed;
               }                
             }
           }
           // Adjust velocity based on the difference between current velocity and target velocity
-          const double velocity_change =0.3; //m/s how much the velocity can increase or decrease in 0.02 seconds
+          const double velocity_change = 0.3; //m/s how much the velocity can increase or decrease in 0.02 seconds
        
           if(ref_velocity < target_speed){
             ref_velocity += velocity_change; 
           }
           else if(ref_velocity > target_speed){       
-            ref_velocity -=velocity_change;
+            ref_velocity -= velocity_change;
           }
           
           /**
@@ -171,7 +173,7 @@ int main() {
            */
           
           // Use previous path points for the spline if available otherwise use current position and angle to estimate previous position.
-          if (previous_path_size<2){  
+          if (previous_path_size < 2) {  
             double prev_car_x = car_x - cos(car_yaw);
             double prev_car_y = car_y - sin(car_yaw);
             ptsx.push_back(prev_car_x);
@@ -180,10 +182,10 @@ int main() {
             ptsy.push_back(car_y);
           } 
           else {              
-            ref_x = previous_path_x[previous_path_size-1];
-            ref_y = previous_path_y[previous_path_size-1];       
-            double ref_x_prev = previous_path_x[previous_path_size-2];
-            double ref_y_prev = previous_path_y[previous_path_size-2];
+            ref_x = previous_path_x[previous_path_size - 1];
+            ref_y = previous_path_y[previous_path_size - 1];       
+            double ref_x_prev = previous_path_x[previous_path_size - 2];
+            double ref_y_prev = previous_path_y[previous_path_size - 2];
             ref_yaw = atan2(ref_y-ref_y_prev,ref_x-ref_x_prev);
             
             ptsx.push_back(ref_x_prev);
@@ -193,9 +195,9 @@ int main() {
           }
 
           //In Frenet add eveny spaced 30m spaced points ahead of the starting reference
-          vector<double> next_wp0 = getXY(car_s+30, (lane_width/2+lane_width*lane), map_waypoints_s, map_waypoints_x, map_waypoints_y);
-          vector<double> next_wp1 = getXY(car_s+60,(lane_width/2+lane_width*lane), map_waypoints_s, map_waypoints_x, map_waypoints_y);
-          vector<double> next_wp2 = getXY(car_s+90,(lane_width/2+lane_width*lane), map_waypoints_s, map_waypoints_x, map_waypoints_y);
+          vector<double> next_wp0 = getXY(car_s + 30, (lane_width / 2 + lane_width * lane), map_waypoints_s, map_waypoints_x, map_waypoints_y);
+          vector<double> next_wp1 = getXY(car_s + 60,(lane_width / 2 + lane_width * lane), map_waypoints_s, map_waypoints_x, map_waypoints_y);
+          vector<double> next_wp2 = getXY(car_s + 90,(lane_width / 2 + lane_width * lane), map_waypoints_s, map_waypoints_x, map_waypoints_y);
 
           ptsx.push_back(next_wp0[0]);
           ptsx.push_back(next_wp1[0]);
@@ -209,8 +211,8 @@ int main() {
             // shift car reference angle to 0 degrees (shift in rotation) 
             double shift_x = ptsx[i] - ref_x;
             double shift_y = ptsy[i] - ref_y;
-            ptsx[i] = shift_x *cos(0-ref_yaw)-shift_y*sin(0-ref_yaw);
-            ptsy[i] = shift_x *sin(0-ref_yaw)+shift_y*cos(0-ref_yaw);           
+            ptsx[i] = shift_x * cos(0 - ref_yaw) - shift_y * sin(0 - ref_yaw);
+            ptsy[i] = shift_x * sin(0 - ref_yaw) + shift_y * cos(0 - ref_yaw);           
           } 
           
           // Initialize Spline 
@@ -220,7 +222,7 @@ int main() {
           vector<double> next_x_vals, next_y_vals;
           
           //Start the trajectory with previous path points
-          for (int i = 0; i< previous_path_size; i++){
+          for (int i = 0; i < previous_path_size; i++) {
             next_x_vals.push_back(previous_path_x[i]);
             next_y_vals.push_back(previous_path_y[i]);    
           } 
@@ -235,7 +237,7 @@ int main() {
           // fill up the rest the trajectory with spline points
           for (int i =0; i < 50- previous_path_size; i++) { 
             
-            double N = target_dist/(0.02*ref_velocity/2.24);
+            double N = target_dist/(0.02 * ref_velocity / 2.24);
             double x_point = x_add_on + (target_x)/N;
             double y_point = s(x_point);
             
@@ -263,7 +265,8 @@ int main() {
 
           ws.send(msg.data(), msg.length(), uWS::OpCode::TEXT);
         }  // end "telemetry" if
-      } else {
+      } 
+      else {
         // Manual driving
         std::string msg = "42[\"manual\",{}]";
         ws.send(msg.data(), msg.length(), uWS::OpCode::TEXT);

@@ -123,6 +123,33 @@ path_planning/fast:
 	$(MAKE) -f CMakeFiles/path_planning.dir/build.make CMakeFiles/path_planning.dir/build
 .PHONY : path_planning/fast
 
+src/fsm.o: src/fsm.cpp.o
+
+.PHONY : src/fsm.o
+
+# target to build an object file
+src/fsm.cpp.o:
+	$(MAKE) -f CMakeFiles/path_planning.dir/build.make CMakeFiles/path_planning.dir/src/fsm.cpp.o
+.PHONY : src/fsm.cpp.o
+
+src/fsm.i: src/fsm.cpp.i
+
+.PHONY : src/fsm.i
+
+# target to preprocess a source file
+src/fsm.cpp.i:
+	$(MAKE) -f CMakeFiles/path_planning.dir/build.make CMakeFiles/path_planning.dir/src/fsm.cpp.i
+.PHONY : src/fsm.cpp.i
+
+src/fsm.s: src/fsm.cpp.s
+
+.PHONY : src/fsm.s
+
+# target to generate assembly for a file
+src/fsm.cpp.s:
+	$(MAKE) -f CMakeFiles/path_planning.dir/build.make CMakeFiles/path_planning.dir/src/fsm.cpp.s
+.PHONY : src/fsm.cpp.s
+
 src/main.o: src/main.cpp.o
 
 .PHONY : src/main.o
@@ -159,6 +186,9 @@ help:
 	@echo "... rebuild_cache"
 	@echo "... path_planning"
 	@echo "... edit_cache"
+	@echo "... src/fsm.o"
+	@echo "... src/fsm.i"
+	@echo "... src/fsm.s"
 	@echo "... src/main.o"
 	@echo "... src/main.i"
 	@echo "... src/main.s"
